@@ -4,7 +4,9 @@ import random
 import matplotlib.pyplot as plt
 import copy
 
-# B-Directional RRT.
+# Bi-Directional RRT.
+# With goal biasing.
+# With Linear Interpolation step for final path optimisation.
 
 class Node:
     def __init__(self, pos):
@@ -12,7 +14,7 @@ class Node:
         self.parent = None
 
 class BiDirectionalRRT:
-    def __init__(self, start, goal, search_space_min=0, search_space_max=50, step_size=1, goal_bias=0.1, max_iteration=1000):
+    def __init__(self, start, goal, search_space_min=0, search_space_max=50, step_size=5, goal_bias=0.1, max_iteration=1000):
         self.start = Node(start)
         self.goal = Node(goal)
         self.nodes_fwd = []
@@ -83,7 +85,7 @@ class BiDirectionalRRT:
         
             if last_fwd_node and last_backward_node is not None:
                 if self.connect(last_fwd_node, last_backward_node):
-                    return self.extract_path(last_fwd_node, last_backward_node), self.extract_path(last_backward_node, self.goal)
+                    return self.extract_path(last_fwd_node), self.extract_path(last_backward_node)
 
 
     def extend(self, random_node, nodes, goal):
@@ -115,7 +117,7 @@ class BiDirectionalRRT:
         if dist <= self.step_size and self.obstacle_free(final_fwd_node, final_back_node):
             self.steer(final_fwd_node, final_back_node) # *
             print("connect")
-            self.plotConnection(final_fwd_node.pos, final_back_node.pos)
+            # self.plotConnection(final_fwd_node.pos, final_back_node.pos)
             return True
         return False
 
@@ -160,9 +162,9 @@ class BiDirectionalRRT:
     def obstacle_free(self, nearest_node, new_node):
         # ...
         return True
-
-    def extract_path(self, final_node, goal):
-        path = [(goal.pos[0], goal.pos[1])]
+    
+    def extract_path(self, final_node):
+        path = []
         node_now = final_node
         while node_now.parent is not None:
             node_now = node_now.parent
@@ -179,15 +181,18 @@ class BiDirectionalRRT:
         plt.pause(0.001)
         
     def plotConnection(self, pos1, pos2):
-        plt.plot(pos1, pos2, '-b')
+        # plt.plot(pos1, pos2, '-y')
+        point1 = pos1
+        point2 = pos2
+        x_values = [point1[0], point2[0]]
+        y_values = [point1[1], point2[1]]
+        plt.plot(x_values, y_values, 'b', linestyle="--")
         plt.draw()
         plt.pause(0.001)
 
-    def plotPath(self, path):
+    def plotPath(self, path, str):
         if len(path) != 0:
-            plt.plot([x[0] for x in path], [x[1] for x in path], '-r', linewidth=1)
-        plt.ioff()
-        plt.show()
+            plt.plot([x[0] for x in path], [x[1] for x in path], str, linewidth=1)
 
 
 def main():
@@ -202,8 +207,28 @@ def main():
     fwd_path, back_path = rrt.plan()
     rrt.plotPoint(start[0], start[0], 'go')
     rrt.plotPoint(goal[0], goal[1], 'ro')
-    rrt.plotPath(fwd_path)
-    rrt.plotPath(back_path)
+    rrt.plotPath(fwd_path, '-r')
+    rrt.plotPath(back_path, '-r')
+    plt.pause(1)
+    final_path = fwd_path[::-1]
+    final_path.extend(back_path)
+    rrt.plotPath(final_path, '-b')
+    plt.pause(1)
+    xList = []
+    yList = []
+    x = final_path[0][0]
+    for pos in final_path:
+        if (x > pos[0]):
+            continue
+        xList.append(pos[0])
+        yList.append(pos[1])
+        x = pos[0]
+    # Linear Interpolation step for final path optimisation.
+    x_new = np.linspace(xList[0], xList[-1], 10)
+    lin_interp = np.interp(x_new, xList, yList)
+    plt.plot(x_new, lin_interp, '-y') 
+    plt.ioff()
+    plt.show()
     
 if __name__ == "__main__":
     main()
